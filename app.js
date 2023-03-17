@@ -1,4 +1,8 @@
 const express = require("express");
+const mongoose = require("mongoose");
+const hbs = require("hbs");
+
+const Pizza = require("./models/Pizza.model.js");
 
 const app = express();
 
@@ -10,57 +14,87 @@ app.set("view engine", "hbs"); //sets HBS as the template engine
 app.use(express.static('public'));
 
 
+hbs.registerPartials(__dirname + "/views/partials"); //tell HBS which directory we use for partials
+
+
+//connect to DB
+mongoose
+  .connect('mongodb://127.0.0.1/warriors-bites')
+  .then(x => {
+    console.log(`Connected to Mongo! Database name: "${x.connections[0].name}"`);
+  })
+  .catch( e => {
+    console.log("error connecting to DB", e);
+  })
+
+
+
+/***********/
+/* ROUTES */
+/***********/
+
+
 
 //Route for homepage
-app.get("/", (request, response, next) => {
-    response.render("home");
+app.get("/", (req, res, next) => {
+    res.render("home");
 });
 
 
 //Route for contact page
-app.get("/contact", (request, response, next) => {
-    response.render("contact-page");
+app.get("/contact", (req, res, next) => {
+    res.render("contact-page");
 })
 
 
-//GET /pizzas/margarita
-app.get("/pizzas/margarita", (request, response, next) => {
+//GET /pizzas
+app.get("/pizzas", (req, res, next) => {
 
-    const data = {
-        title: 'Pizza Margarita',
-        price: 12,
-        imageFile: 'pizza-margarita.jpg',
-        ingredients: ['mozzarella', 'tomato sauce', 'basilicum'],
-    };
+    let maxPrice = req.query.maxPrice;
+    // const {maxPrice} = req.query;
 
-    response.render("product", data);
+    maxPrice = Number(maxPrice); //convert to a number
+
+
+    let filter = {};
+    if(maxPrice){
+        filter = {price: {$lte: maxPrice}};
+    }
+
+
+    Pizza.find(filter)
+        .then( pizzasArr => {
+            
+            const data = {
+                pizzas: pizzasArr
+            };
+
+            res.render("product-list", data);
+        })
+        .catch(e => {
+            console.log("error getting list of pizzas from DB", e)
+        });
+
 });
 
 
-//GET /pizzas/veggie
-app.get("/pizzas/veggie", (request, response, next) => {
 
-    const data = {
-        title: 'Veggie Pizza',
-        price: 15,
-        imageFile: 'pizza-veggie.jpg',
-        ingredients: ['cherry tomatoes', 'basilicum', 'Olives'],
-    };
+//GET /pizzas/:pizzaName
+app.get("/pizzas/:pizzaName", (req, res, next) => {
     
-    response.render("product", data);
+    const nameOfMyPizza = req.params.pizzaName;
+
+    Pizza.findOne({name: nameOfMyPizza})
+        .then( (pizzaDetails) => {
+            console.log(pizzaDetails)
+            res.render("product", pizzaDetails);
+        } )
+        .catch(e => {
+            console.log("error getting pizza details from DB", e)
+        });
+
 });
 
-
-//GET /pizzas/seafood
-app.get("/pizzas/seafood", (request, response, next) => {
-
-    const data = {
-        title: 'Seafood Pizza',
-        imageFile: 'pizza-seafood.jpg',
-    };
-
-    response.render("product", data);
-});
 
 
 
